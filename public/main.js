@@ -9,7 +9,6 @@ let socket = io()
 window.addEventListener('beforeunload', function (e) {
   socket.emit('disconnect')
 })
-
 navigator.mediaDevices
   .getUserMedia({
     audio: true,
@@ -18,54 +17,57 @@ navigator.mediaDevices
   .then(stream => {
     localVideo.srcObject = stream
     localStream = stream
-  })
 
-socket.emit('start call')
+    socket.emit('start call')
 
-socket.on('call partner', partnerID => {
-  rtcPeerConnection = createPeerConnection(partnerID)
-  localStream
-    .getTracks()
-    .forEach(track => rtcPeerConnection.addTrack(track, localStream))
-  remoteUser = partnerID
-})
+    socket.on('call partner', partnerID => {
+      rtcPeerConnection = createPeerConnection(partnerID)
 
-socket.on('call host', hostID => {
-  remoteUser = hostID
-})
-
-socket.on('offer', incomingOffer => {
-  rtcPeerConnection = createPeerConnection()
-  rtcPeerConnection
-    .setRemoteDescription(new RTCSessionDescription(incomingOffer.sdp))
-    .then(() => {
       localStream
         .getTracks()
         .forEach(track => rtcPeerConnection.addTrack(track, localStream))
+      remoteUser = partnerID
     })
-    .then(() => {
-      return rtcPeerConnection.createAnswer()
-    })
-    .then(answer => {
-      return rtcPeerConnection.setLocalDescription(answer)
-    })
-    .then(() => {
-      const payload = {
-        target: incomingOffer.caller,
-        caller: socket.id,
-        sdp: rtcPeerConnection.localDescription,
-      }
-      socket.emit('answer', payload)
-    })
-})
 
-socket.on('answer', payload => {
-  rtcPeerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-})
+    socket.on('call host', hostID => {
+      remoteUser = hostID
+    })
 
-socket.on('ice-candidate', incomingCandidate => {
-  rtcPeerConnection.addIceCandidate(new RTCIceCandidate(incomingCandidate))
-})
+    socket.on('offer', incomingOffer => {
+      rtcPeerConnection = createPeerConnection()
+      rtcPeerConnection
+        .setRemoteDescription(new RTCSessionDescription(incomingOffer.sdp))
+        .then(() => {
+          localStream
+            .getTracks()
+            .forEach(track => rtcPeerConnection.addTrack(track, localStream))
+        })
+        .then(() => {
+          return rtcPeerConnection.createAnswer()
+        })
+        .then(answer => {
+          return rtcPeerConnection.setLocalDescription(answer)
+        })
+        .then(() => {
+          const payload = {
+            target: incomingOffer.caller,
+            caller: socket.id,
+            sdp: rtcPeerConnection.localDescription,
+          }
+          socket.emit('answer', payload)
+        })
+    })
+
+    socket.on('answer', payload => {
+      rtcPeerConnection.setRemoteDescription(
+        new RTCSessionDescription(payload.sdp)
+      )
+    })
+
+    socket.on('ice-candidate', incomingCandidate => {
+      rtcPeerConnection.addIceCandidate(new RTCIceCandidate(incomingCandidate))
+    })
+  })
 
 function createPeerConnection(userID) {
   const peerConnection = new RTCPeerConnection({
