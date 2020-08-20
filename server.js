@@ -14,6 +14,7 @@ let users = []
 io.on('connection', socket => {
   socket.on('disconnect', () => {
     users = users.filter(e => e != socket.id)
+    io.to(users[0]).emit('user disconnects')
   })
 
   socket.on('start call', () => {

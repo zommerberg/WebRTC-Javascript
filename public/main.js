@@ -6,13 +6,19 @@ let rtcPeerConnection
 
 let socket = io()
 
-window.addEventListener('beforeunload', function (e) {
-  socket.emit('disconnect')
-})
+window.addEventListener(
+  ['iPad', 'iPhone', 'iPod'].indexOf(navigator.platform) >= 0
+    ? 'pagehide'
+    : 'beforeunload',
+  function (e) {
+    socket.emit('disconnect')
+  }
+)
+
 navigator.mediaDevices
   .getUserMedia({
     audio: true,
-    video: true,
+    video: { width: 1280, height: 640 },
   })
   .then(stream => {
     localVideo.srcObject = stream
@@ -22,7 +28,6 @@ navigator.mediaDevices
 
     socket.on('call partner', partnerID => {
       rtcPeerConnection = createPeerConnection(partnerID)
-
       localStream
         .getTracks()
         .forEach(track => rtcPeerConnection.addTrack(track, localStream))
@@ -66,6 +71,12 @@ navigator.mediaDevices
 
     socket.on('ice-candidate', incomingCandidate => {
       rtcPeerConnection.addIceCandidate(new RTCIceCandidate(incomingCandidate))
+    })
+
+    socket.on('user disconnects', () => {
+      remoteUser = null
+      rtcPeerConnection = null
+      remoteVideo.srcObject = null
     })
   })
 
